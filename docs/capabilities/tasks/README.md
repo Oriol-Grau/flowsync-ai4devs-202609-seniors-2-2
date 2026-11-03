@@ -22,10 +22,11 @@ de `POST /api/v1/auth/login` o de `POST /api/v1/auth/signup`.
 | `GET /tasks` | `status` en query, opcional | [`TasksController.index`](../../../backend/app/controllers/tasks_controller.ts) | `200` · lista de tareas |
 | `POST /tasks` | `{ "title": "..." }` | [`TasksController.store`](../../../backend/app/controllers/tasks_controller.ts) | `201` · la tarea creada |
 | `GET /tasks/:id` | `today=AAAA-MM-DD` en query, **obligatorio** | [`TasksController.show`](../../../backend/app/controllers/tasks_controller.ts) | `200` · la tarea con vencimiento |
+| `DELETE /tasks/:id` | — | [`TasksController.destroy`](../../../backend/app/controllers/tasks_controller.ts) | `204` · sin cuerpo; `404` si no existe |
 | `PATCH /tasks/:id/status` | `{ "status": "pending \| in_progress \| done" }` | [`TaskStatusesController.update`](../../../backend/app/controllers/task_statuses_controller.ts) | `200` · la tarea ya cambiada |
 | `PUT /tasks/:id/due-date` | `{ "dueDate": "AAAA-MM-DD" \| null, "today": "AAAA-MM-DD" }` | [`TaskDueDatesController.update`](../../../backend/app/controllers/task_due_dates_controller.ts) | `200` · la tarea con vencimiento |
 
-Toda respuesta va envuelta en `{ "data": ... }` por el serializer de
+Toda respuesta con cuerpo va envuelta en `{ "data": ... }` (el `204` de `DELETE` no lo tiene) por el serializer de
 [`providers/api_provider.ts`](../../../backend/providers/api_provider.ts).
 
 ### Dos formas de tarea, no una
@@ -58,10 +59,10 @@ recorta a `id`, `fullName` e `initials` — nunca el email.
 
 ### El contrato, servido
 
-Las cinco operaciones están anotadas con los decoradores de `@foadonis/openapi` sobre los propios
+Las seis operaciones están anotadas con los decoradores de `@foadonis/openapi` sobre los propios
 controladores, así que el documento servido en **`/api.json`** (y la interfaz en `/api`) lleva el
 parámetro `status` con sus tres valores, el `today` obligatorio, los cuerpos de las escrituras y los
-códigos `200`/`201`/`401`/`404`/`422` de cada operación, cada uno con la forma de lo que devuelve.
+códigos `200`/`201`/`204`/`401`/`404`/`422` de cada operación, cada uno con la forma de lo que devuelve.
 
 Las formas que se repiten viven en
 [`backend/app/openapi/schemas.ts`](../../../backend/app/openapi/schemas.ts) y se publican en
@@ -125,9 +126,10 @@ node ace test --tests="el responsable llega con su nombre y sus iniciales"
 ```
 
 Los tests de esta capability están en
-[`backend/tests/functional/tasks/`](../../../backend/tests/functional/tasks/). **Hoy solo hay uno**,
-`assignee.spec.ts`, que cubre 3 de los 124 scenarios de la spec: los del requisito *Lo que cada tarea
-muestra de su responsable*. Todo lo demás está sin cubrir, así que el verde de la suite **no** es
+[`backend/tests/functional/tasks/`](../../../backend/tests/functional/tasks/). **Hoy solo hay dos**:
+`assignee.spec.ts`, que cubre 3 de los 124 scenarios de la spec (los del requisito *Lo que cada tarea
+muestra de su responsable*), y `delete.spec.ts`, que prueba `DELETE /tasks/:id` (204, 404 y 401) y no
+corresponde a ningún requisito porque la spec no contempla el borrado. Todo lo demás está sin cubrir, así que el verde de la suite **no** es
 señal de que la capability cumpla su spec.
 
 Dos cosas que hay que saber antes de escribir un test aquí:
@@ -176,6 +178,9 @@ curl -s -X PATCH http://localhost:3333/api/v1/tasks/1/status \
 curl -s -X PUT http://localhost:3333/api/v1/tasks/1/due-date \
   -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
   -d '{"dueDate":"2026-08-19","today":"2026-08-20"}'
+
+# 7. Borrar la tarea — 204 sin cuerpo
+curl -s -i -X DELETE http://localhost:3333/api/v1/tasks/1 -H "Authorization: Bearer $TOKEN"
 ```
 
 Ojo: esto **escribe en la base de datos de desarrollo**. Para dejarla como estaba, `node ace

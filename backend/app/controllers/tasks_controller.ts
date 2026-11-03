@@ -173,4 +173,36 @@ export default class TasksController {
     response.status(201)
     return serialize(TaskTransformer.transform(task))
   }
+
+  /**
+   * Borrar una tarea. Como el resto de escrituras de la capability, no
+   * comprueba quién es el responsable: cualquier cuenta con sesión puede
+   * borrar cualquier tarea. La respuesta no lleva cuerpo, así que no pasa
+   * por `serialize()` y no hay envoltorio `{ data }`.
+   */
+  @ApiOperation({
+    summary: 'Borrar una tarea',
+    description:
+      'Borra la tarea de forma definitiva y responde `204` sin cuerpo. No comprueba quién es el responsable: cualquier cuenta con sesión puede borrar cualquier tarea.',
+  })
+  @ApiResponse({
+    status: 204,
+    description: 'La tarea ya no existe. La respuesta no tiene cuerpo.',
+  })
+  @ApiResponse({
+    status: 401,
+    description: 'Falta el token o no es válido. No se borra ninguna tarea.',
+    type: () => ErrorResponse,
+  })
+  @ApiResponse({
+    status: 404,
+    description: 'No existe ninguna tarea con ese identificador.',
+    type: () => ErrorResponse,
+  })
+  async destroy({ params, response }: HttpContext) {
+    const task = await Task.findOrFail(params.id)
+    await task.delete()
+
+    return response.noContent()
+  }
 }
